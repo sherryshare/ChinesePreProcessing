@@ -17,6 +17,7 @@
 namespace ctpp {
 using namespace std;
 class FileProcessing {
+  // All Chinese words are regarded as UTF-8 format.
 public:
     FileProcessing(string fileName,bool isRawFile = true);
     ~FileProcessing();
@@ -31,6 +32,7 @@ protected:
     string RemoveSpaceOneLine(string lineStr);
     int GetSentence(string &lineStr);
     string ChangeBracket(string lineStr);
+    char ChangeFullCaseToHalf(string fullCaseStr);
 
 protected:
     string fileName;
