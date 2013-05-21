@@ -1,9 +1,9 @@
 #include "file_processing.h"
 namespace ctpp {
 using namespace std;
-FileProcessing::FileProcessing(string fileName, bool isRawFile):fileName(fileName),isRawFile(isRawFile)
+FileProcessing::FileProcessing(string fileName, string outDir, bool isRawFile)
+    :fileName(fileName),isRawFile(isRawFile),outDir(outDir)
 {
-
 }
 FileProcessing::~FileProcessing()
 {
@@ -11,12 +11,12 @@ FileProcessing::~FileProcessing()
 }
 
 
-void FileProcessing::ChangeFileName(string newAffix, string newSuffix)
+void FileProcessing::ChangeFileName(string newAffix, string newPreffix, string newSuffix)
 {
     int i=fileName.find_last_of('.');
-    int j=fileName.find_last_of('/');//??
-    if (i>j) newFileName = fileName.substr(0,i) + newAffix+newSuffix;
-    else newFileName = fileName + newAffix + newSuffix;
+    int j=fileName.find_last_of('/');
+    if (i>j) newFileName = fileName.substr(0,j+1) + newPreffix +fileName.substr(j+1,i-j-1) + newAffix+newSuffix;
+    else newFileName = newPreffix + fileName + newAffix + newSuffix;
 }
 void FileProcessing::GetRawFormatFromAnnotatedFile(void )
 {
@@ -266,7 +266,7 @@ void FileProcessing::SentenceSegementation(void )
     char buf[MAXLINE];
     string line;
     int i,len;
-    ChangeFileName("-sen");
+    ChangeFileName("-sen",outDir);
     openIOFile();
     while(inFile.getline(buf,MAXLINE)) {// Read each line in the file.
         line = buf;

@@ -19,13 +19,13 @@ using namespace std;
 class FileProcessing {
   // All Chinese words are regarded as UTF-8 format.
 public:
-    FileProcessing(string fileName,bool isRawFile = true);
+    FileProcessing(string fileName, string outDir = "",bool isRawFile = true);
     ~FileProcessing();
     void SentenceSegementation(void);
     void GetRawFormatFromAnnotatedFile(void);
 protected:
     //Add a new affix to the original file with a new suffix
-    void ChangeFileName(string newAffix, string newSuffix = ".txt");
+    void ChangeFileName(string newAffix, string newPreffix = "", string newSuffix = ".txt");
     int openIOFile(void);
     inline void closeIOFile(void);
     //functions for processing one line
@@ -40,6 +40,7 @@ protected:
     bool isRawFile;
     ifstream inFile;
     ofstream outFile;
+    string outDir;
 };//end class FileProcessing
 
 

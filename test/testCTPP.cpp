@@ -17,15 +17,19 @@ int main(void) {
 
     while((dirStructPointer=readdir(dirPointer))!=NULL) {
 	tmpFileName = dirStructPointer->d_name;
+	if(dirStructPointer->d_type == DT_DIR)// Is directory, ignore.
+	  continue;
 	if(fatherDir == tmpFileName || selfDir == tmpFileName)
             continue;
 	fileNameVec.push_back(dirStr+"/"+tmpFileName);
     }
+    
+    //system("mkdir sen");
 
     for(vector<string>::iterator it = fileNameVec.begin(); it != fileNameVec.end(); it++)
     {
         cout<<*it<<endl;
-	FileProcessing newFileProcessing(*it);
+	FileProcessing newFileProcessing(*it,"sen/");
 	newFileProcessing.SentenceSegementation();
     }
 
