@@ -125,22 +125,9 @@ string FileProcessing::RemoveSpaceOneLine(string lineStr)
             }
             else if(lineStr.length() == 2) { // Remain 2 words.
                 wordStr = lineStr.substr(0,2);
-//                 if(wordStr[1] < 0) {
-//                     retStr += wordStr;
-//                     lineStr = lineStr.substr(2);
-//                     lastWordIsEngCh = false;
-//                 }
-//                 else {
-//                     retStr += lineStr.substr(0,1);
-//                     lineStr = lineStr.substr(1);
-//                     lastWordIsEngCh = false;
-//                 }
             }
             else { // If the remains are less than 1 words.
                 wordStr = lineStr.substr(0,1);
-//                 lineStr = lineStr.substr(1);
-//                 lastWordIsEngCh = false;
-
             }
             if(wordStr.length() == 3 && wordStr[1]<0 && wordStr[2]<0)//Complete Chinese word
             {
@@ -186,12 +173,32 @@ int FileProcessing::GetSentence(string& lineStr)
     int len=lineStr.length();
     bool foundSentence = false;
     bool lastWordIsEndPunc = false;// Judge whether the last word is an ending puncture.
-    //lineStr = RemoveSpaceOneLine(lineStr);
 
     while(i < len && !(foundSentence && puncVecChar.empty() && puncVecStr.empty())) {
         if(lineStr[i]>0) { // The English character
             string punctureStrEnd = E_PUNCTURE_END,punctureStrLeft = E_PUNCTURE_LEFT,
                    punctureStrRight = E_PUNCTURE_RIGHT,punctureStrLR = E_PUNCTURE_LR;
+	    if(lastWordIsEndPunc && punctureStrEnd.find(lineStr[i]) == punctureStrEnd.npos) {
+		// Not an Ending English puncture while the previous word is an ending puncture.
+                if(puncVecChar.empty() && puncVecStr.empty()) {
+		//  All stacks are empty.
+                    foundSentence = true;// Only countinuous ending puncture (or with right puncture) can result in a complete sentence.
+                    break;
+                }
+                else if(puncVecChar.empty() && puncVecStr.size() == 1 && puncVecStr.back() == "“") {
+		    // Cut the sentences between the “ ” into pieces.  
+		    puncVecStr.pop_back();//Delete the last one.
+                    foundSentence = true;
+                    lineStr = lineStr.substr(0,i) + "”“" + lineStr.substr(i);
+                    i+=3;
+                    break;
+                }	  
+                else if(punctureStrRight.find(lineStr[i]) == punctureStrRight.npos && !(puncVecChar.size() == 1 
+		  && punctureStrLR.find(puncVecChar.back()) != punctureStrLR.npos 
+		  && punctureStrLR.find(lineStr[i]) != punctureStrLR.npos)){// Not the right or left-right puncture.
+                    lastWordIsEndPunc = false;
+		}
+            }
             if(punctureStrLR.find(lineStr[i])!=punctureStrLR.npos) { // When finding the English left-right puncture.
                 if(!puncVecChar.empty() && puncVecChar.back() == lineStr[i]) { // When the left one has been pushed back.
                     puncVecChar.pop_back();//Delete the left one.
@@ -204,14 +211,14 @@ int FileProcessing::GetSentence(string& lineStr)
                 puncVecChar.push_back(lineStr[i]);
             }
             else if(punctureStrRight.find(lineStr[i])!=punctureStrLeft.npos
-                    && !puncVecChar.empty() && puncVecChar.back()==lineStr[i]-1) {
+                    && !puncVecChar.empty() && punctureStrLeft.find(puncVecChar.back())==punctureStrRight.find(lineStr[i])) {
                 // When finding the English right puncture with the relevant left one on top of the stack.
                 // If not, ignore it.
                 puncVecChar.pop_back();//Delete the left one.
             }
             else if(punctureStrEnd.find(lineStr[i])!=punctureStrEnd.npos  // When finding the English ending puncture.
-                    && !(lineStr[i]=='.' && lineStr[i-1]<='9' && lineStr[i-1]>='0'
-                         && lineStr[i-1]<='9' && lineStr[i-1]>='0')) { // Deal with the decimal.
+                    && !((lineStr[i]=='.' || lineStr[i]==':') && lineStr[i-1]<='9' && lineStr[i-1]>='0'
+                         && lineStr[i-1]<='9' && lineStr[i-1]>='0')) { // Deal with the decimal & time,eg. 8:00
                 lastWordIsEndPunc = true;
                 //foundSentence=true;
             }
@@ -220,14 +227,40 @@ int FileProcessing::GetSentence(string& lineStr)
                 foundSentence = true;
                 i--;
             }
+            else if(lastWordIsEndPunc && puncVecChar.empty()// Cut the sentences between the “ ” into pieces.
+	      && puncVecStr.size() == 1 && puncVecStr.back() == "“" && lineStr.substr(i-3,3) != "“"){
+		puncVecStr.pop_back();//Delete the last one.
+		foundSentence = true;
+		lineStr = lineStr.substr(0,i) + "”“" + lineStr.substr(i); 
+		i+=2;
+	    }
             else// Other English character
                 lastWordIsEndPunc = false;
             i++;
         }
         else { // The Chinese character
-            wordStr = lineStr.substr(i,3);// Get the Chinese character
+            wordStr = lineStr.substr(i,3);// Get the Chinese character, ignoring the 2 bytes Chinese character
             string punctureStrEnd = C_PUNCTURE_END,punctureStrLeft = C_PUNCTURE_LEFT,
                    punctureStrRight = C_PUNCTURE_RIGHT;
+	    if(lastWordIsEndPunc && punctureStrEnd.find(wordStr.c_str()) == punctureStrEnd.npos) {
+	        // Not an Ending Chinese puncture while the previous word is an ending puncture.
+                if(puncVecChar.empty() && puncVecStr.empty()) {
+		//  All stacks are empty.
+                    foundSentence = true;// Only countinuous ending puncture (or with right puncture) can result in a complete sentence.
+                    break;
+                }
+                else if(puncVecChar.empty() && wordStr != "”" && puncVecStr.size() == 1 && puncVecStr.back() == "“") {
+                    // Cut the sentences between the “ ” into pieces.
+		    puncVecStr.pop_back();//Delete the last one.
+                    foundSentence = true;
+                    lineStr = lineStr.substr(0,i) + "”“" + lineStr.substr(i);
+                    i+=3;
+                    break;
+                }
+                else if(punctureStrRight.find(wordStr.c_str()) == punctureStrRight.npos)
+		    // Not the right puncture.
+                    lastWordIsEndPunc = false;
+            }
             if(punctureStrLeft.find(wordStr.c_str())!=punctureStrLeft.npos) { // When finding the Chinese left puncture
                 puncVecStr.push_back(wordStr);
             }
@@ -241,13 +274,6 @@ int FileProcessing::GetSentence(string& lineStr)
                 //Regard those ending punctures before the right puncture of puncture pairs to be part of a sentence.
                 lastWordIsEndPunc = true;
             }
-            else if(lastWordIsEndPunc && puncVecChar.empty() && puncVecStr.empty()) {
-                // Other Chinese character while the last word is an ending puncture and stacks are empty.
-                foundSentence = true;// Only countinuous ending puncture( or with right puncture) can result in a complete sentence.
-                i-=3;
-            }
-            else// Other Chinese character
-                lastWordIsEndPunc = false;
             i+=3;
         }
     }

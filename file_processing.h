@@ -11,9 +11,9 @@
 #define E_PUNCTURE_RIGHT ")]}" // English right punctures (showing order according to the left ones)
 #define E_PUNCTURE_LR	"\042" // English puncture pairs without differing left and right
 // The English single quotation marks has been ignored because it can be used either in pairs or alone.
-#define C_PUNCTURE_END "。 ！ ？ ； …" // Chinese ending punctures, without Chinese colon
-#define C_PUNCTURE_LEFT "“ ‘ （ 《"       // Chinese left punctures
-#define C_PUNCTURE_RIGHT "” ’ ） 》"       // Chinese right punctures (showing order according to the left ones)
+#define C_PUNCTURE_END "。！？；…" // Chinese ending punctures, without Chinese colon
+#define C_PUNCTURE_LEFT "“‘（《"       // Chinese left punctures
+#define C_PUNCTURE_RIGHT "”’）》"       // Chinese right punctures (showing order according to the left ones)
 namespace ctpp {
 using namespace std;
 class FileProcessing {
