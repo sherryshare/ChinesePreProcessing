@@ -101,68 +101,87 @@ string FileProcessing::RemoveSpaceOneLine(string lineStr)
     string wordStr;
     char halfCaseCh;
     bool lastWordIsEngCh=false;
+    int bytesNum;
 
     while(!lineStr.empty()) {
-        wordStr = lineStr.substr(0,1);
+        bytesNum = GetUTF8BytesNum(lineStr[0]);
+        //wordStr = lineStr.substr(0,1);
         // When this char is a Western Character
-        if (wordStr[0]>=0) {
+        if(lineStr.length() < bytesNum) { // Remain bytes is less than a complete character.
+            lineStr.erase();
+            break;
+        }
+        if (bytesNum == 1) {
             //Delete the blank,tab,enter,wrap character and store the others
-            if ((wordStr[0]!=32 && wordStr[0]!=9 && wordStr[0]!=13 && wordStr[0]!=10)
-                    || (wordStr[0] == 32 && lastWordIsEngCh))// Blanks between English words can't be deleted.
-                retStr=retStr.insert(retStr.length(),1,wordStr[0]);//add char to the end of the string
-            if((wordStr[0]>='a' && wordStr[0]<='z') || (wordStr[0]>='A' && wordStr[0] <= 'Z'))
+            if ((lineStr[0]!=32 && lineStr[0]!=9 && lineStr[0]!=13 && lineStr[0]!=10)
+                    || (lineStr[0] == 32 && lastWordIsEngCh))// Blanks between English words can't be deleted.
+                retStr=retStr.insert(retStr.length(),1,lineStr[0]);//add char to the end of the string
+            if((lineStr[0]>='a' && lineStr[0]<='z') || (lineStr[0]>='A' && lineStr[0] <= 'Z'))
                 lastWordIsEngCh = true;
             else
                 lastWordIsEngCh = false;
             lineStr = lineStr.substr(1);
         }
         // When this char is a Chinese Character
-        else {
-            if(lineStr.length()>2) // Check whether the remain string is more than 3 words.
-            {
-                wordStr = lineStr.substr(0,3);//Get the first 3 words.
-
-            }
-            else if(lineStr.length() == 2) { // Remain 2 words.
-                wordStr = lineStr.substr(0,2);
-            }
-            else { // If the remains are less than 1 words.
-                wordStr = lineStr.substr(0,1);
-            }
-            if(wordStr.length() == 3 && wordStr[1]<0 && wordStr[2]<0)//Complete Chinese word
-            {
-                //Delete the Chinese full-width blank and store the others (0xe38080)
-                halfCaseCh = ChangeFullCaseToHalf(wordStr);
-                if(halfCaseCh == 0) { //Not full case, ordinary Chinese word
-                    retStr += wordStr;
-                    lineStr = lineStr.substr(3);
-                    //lastWordIsEngCh = false;
-                }
-                else { //Full case change to half case, need to be processed in the next loop.
-                    lineStr = lineStr.substr(3);
-                    lineStr = lineStr.insert(0,1,halfCaseCh);
-                    continue;
-                }
-            }
-            else if(wordStr.length()>=2 && wordStr[1] < 0) {
-                retStr += wordStr.substr(0,2);
-                lineStr = lineStr.substr(2);
+        else if(bytesNum == 3) {
+	    wordStr = lineStr.substr(0,3);
+            //Delete the Chinese full-width blank and store the others (0xe38080)
+            halfCaseCh = ChangeFullCaseToHalf(wordStr);
+            if(halfCaseCh == 0) { //Not full case, ordinary Chinese word
+                retStr += wordStr;
+                lineStr = lineStr.substr(3);
                 //lastWordIsEngCh = false;
             }
-            else {
-                retStr += wordStr.substr(0,1);
-                lineStr = lineStr.substr(1);
-                //lastWordIsEngCh = false;
+            else { //Full case change to half case, need to be processed in the next loop.
+                lineStr = lineStr.substr(3);
+                lineStr = lineStr.insert(0,1,halfCaseCh);
+                continue;
             }
             lastWordIsEngCh = false;
         }
+        else if(bytesNum) {
+            retStr += lineStr.substr(0,bytesNum);
+            lineStr = lineStr.substr(bytesNum);
+
+        }
+        else{// Wrong UTF-8 word
+	  lineStr = lineStr.erase(0,1);	  
+	}
         if(lineStr.length()>1) {
             lineStr.erase(0,lineStr.find_first_not_of(" "));//delete the blank spaces on the left of the remain string.
         }
     }
     return retStr;
-
 }
+
+int FileProcessing::GetUTF8BytesNum(char utf8Char)
+{
+    if(utf8Char >= 0)
+        return 1;
+    else if((utf8Char & 0x0e0) == 0x0c0)
+        return 2;
+    else if((utf8Char & 0x0f0) == 0x0e0)
+        return 3;
+    else if((utf8Char & 0x0f8) == 0x0f0)
+        return 4;
+    else if((utf8Char & 0x0fc) == 0x0f8)
+        return 5;
+    else if((utf8Char & 0x0fe) == 0x0fc)
+        return 6;
+    else {
+        cout << "Wrong UTF-8 char" << endl;
+        return 0;//wrong input
+    }
+}
+bool FileProcessing::JudgeUTF8NextChar(char utf8Char)
+// Judge whether the next char in a utf-8 word is correct.
+{
+    if((utf8Char & 0x0c0) == 0x080)
+        return true;// The correct bytes in utf-8 (not the first one)
+    else
+        return false;// Not a utf-8 bytes.
+}
+
 
 int FileProcessing::GetSentence(string& lineStr)
 {   // Get a complete sentence in a string with the end index of the sentence returned.
@@ -173,31 +192,33 @@ int FileProcessing::GetSentence(string& lineStr)
     int len=lineStr.length();
     bool foundSentence = false;
     bool lastWordIsEndPunc = false;// Judge whether the last word is an ending puncture.
+    int bytesNum;
 
     while(i < len && !(foundSentence && puncVecChar.empty() && puncVecStr.empty())) {
-        if(lineStr[i]>0) { // The English character
+        bytesNum = GetUTF8BytesNum(lineStr[i]);
+        if(bytesNum == 1) { // The English character
             string punctureStrEnd = E_PUNCTURE_END,punctureStrLeft = E_PUNCTURE_LEFT,
                    punctureStrRight = E_PUNCTURE_RIGHT,punctureStrLR = E_PUNCTURE_LR;
-	    if(lastWordIsEndPunc && punctureStrEnd.find(lineStr[i]) == punctureStrEnd.npos) {
-		// Not an Ending English puncture while the previous word is an ending puncture.
+            if(lastWordIsEndPunc && punctureStrEnd.find(lineStr[i]) == punctureStrEnd.npos) {
+                // Not an Ending English puncture while the previous word is an ending puncture.
                 if(puncVecChar.empty() && puncVecStr.empty()) {
-		//  All stacks are empty.
+                    //  All stacks are empty.
                     foundSentence = true;// Only countinuous ending puncture (or with right puncture) can result in a complete sentence.
                     break;
                 }
                 else if(puncVecChar.empty() && puncVecStr.size() == 1 && puncVecStr.back() == "“") {
-		    // Cut the sentences between the “ ” into pieces.  
-		    puncVecStr.pop_back();//Delete the last one.
+                    // Cut the sentences between the “ ” into pieces.
+                    puncVecStr.pop_back();//Delete the last one.
                     foundSentence = true;
                     lineStr = lineStr.substr(0,i) + "”“" + lineStr.substr(i);
                     i+=3;
                     break;
-                }	  
-                else if(punctureStrRight.find(lineStr[i]) == punctureStrRight.npos && !(puncVecChar.size() == 1 
-		  && punctureStrLR.find(puncVecChar.back()) != punctureStrLR.npos 
-		  && punctureStrLR.find(lineStr[i]) != punctureStrLR.npos)){// Not the right or left-right puncture.
+                }
+                else if(punctureStrRight.find(lineStr[i]) == punctureStrRight.npos && !(puncVecChar.size() == 1
+                        && punctureStrLR.find(puncVecChar.back()) != punctureStrLR.npos
+                        && punctureStrLR.find(lineStr[i]) != punctureStrLR.npos)) { // Not the right or left-right puncture.
                     lastWordIsEndPunc = false;
-		}
+                }
             }
             if(punctureStrLR.find(lineStr[i])!=punctureStrLR.npos) { // When finding the English left-right puncture.
                 if(!puncVecChar.empty() && puncVecChar.back() == lineStr[i]) { // When the left one has been pushed back.
@@ -228,54 +249,66 @@ int FileProcessing::GetSentence(string& lineStr)
                 i--;
             }
             else if(lastWordIsEndPunc && puncVecChar.empty()// Cut the sentences between the “ ” into pieces.
-	      && puncVecStr.size() == 1 && puncVecStr.back() == "“" && lineStr.substr(i-3,3) != "“"){
-		puncVecStr.pop_back();//Delete the last one.
-		foundSentence = true;
-		lineStr = lineStr.substr(0,i) + "”“" + lineStr.substr(i); 
-		i+=2;
-	    }
+                    && puncVecStr.size() == 1 && puncVecStr.back() == "“" && lineStr.substr(i-3,3) != "“") {
+                puncVecStr.pop_back();//Delete the last one.
+                foundSentence = true;
+                lineStr = lineStr.substr(0,i) + "”“" + lineStr.substr(i);
+                i+=2;
+            }
             else// Other English character
                 lastWordIsEndPunc = false;
             i++;
         }
-        else { // The Chinese character
-            wordStr = lineStr.substr(i,3);// Get the Chinese character, ignoring the 2 bytes Chinese character
-            string punctureStrEnd = C_PUNCTURE_END,punctureStrLeft = C_PUNCTURE_LEFT,
-                   punctureStrRight = C_PUNCTURE_RIGHT;
-	    if(lastWordIsEndPunc && punctureStrEnd.find(wordStr.c_str()) == punctureStrEnd.npos) {
-	        // Not an Ending Chinese puncture while the previous word is an ending puncture.
-                if(puncVecChar.empty() && puncVecStr.empty()) {
-		//  All stacks are empty.
-                    foundSentence = true;// Only countinuous ending puncture (or with right puncture) can result in a complete sentence.
+        else if(bytesNum) {
+            int j;
+            for(j = 1; j < bytesNum; j++)
+                if(!JudgeUTF8NextChar(lineStr[j+i]))
                     break;
+            if(j != bytesNum) { // Wrong Character
+                lineStr = lineStr.erase(i,j+1);
+                continue;
+            }
+            if(bytesNum == 3) { // The Chinese character
+                wordStr = lineStr.substr(i,3);// Get the Chinese character, ignoring the 2 bytes Chinese character
+                string punctureStrEnd = C_PUNCTURE_END,punctureStrLeft = C_PUNCTURE_LEFT,
+                       punctureStrRight = C_PUNCTURE_RIGHT;
+                if(lastWordIsEndPunc && punctureStrEnd.find(wordStr.c_str()) == punctureStrEnd.npos) {
+                    // Not an Ending Chinese puncture while the previous word is an ending puncture.
+                    if(puncVecChar.empty() && puncVecStr.empty()) {
+                        //  All stacks are empty.
+                        foundSentence = true;// Only countinuous ending puncture (or with right puncture) can result in a complete sentence.
+                        break;
+                    }
+                    else if(puncVecChar.empty() && wordStr != "”" && puncVecStr.size() == 1 && puncVecStr.back() == "“") {
+                        // Cut the sentences between the “ ” into pieces.
+                        puncVecStr.pop_back();//Delete the last one.
+                        foundSentence = true;
+                        lineStr = lineStr.substr(0,i) + "”“" + lineStr.substr(i);
+                        i+=3;
+                        break;
+                    }
+                    else if(punctureStrRight.find(wordStr.c_str()) == punctureStrRight.npos)
+                        // Not the right puncture.
+                        lastWordIsEndPunc = false;
                 }
-                else if(puncVecChar.empty() && wordStr != "”" && puncVecStr.size() == 1 && puncVecStr.back() == "“") {
-                    // Cut the sentences between the “ ” into pieces.
-		    puncVecStr.pop_back();//Delete the last one.
-                    foundSentence = true;
-                    lineStr = lineStr.substr(0,i) + "”“" + lineStr.substr(i);
-                    i+=3;
-                    break;
+                if(punctureStrLeft.find(wordStr.c_str())!=punctureStrLeft.npos) { // When finding the Chinese left puncture
+                    puncVecStr.push_back(wordStr);
                 }
-                else if(punctureStrRight.find(wordStr.c_str()) == punctureStrRight.npos)
-		    // Not the right puncture.
-                    lastWordIsEndPunc = false;
+                else if(punctureStrRight.find(wordStr.c_str())!=punctureStrRight.npos && !puncVecStr.empty()
+                        && punctureStrLeft.find(puncVecStr.back())==punctureStrRight.find(wordStr.c_str())) {
+                    // When finding the Chinese right puncture with the relevant left one on top of the stack.
+                    // If not, ignore it.
+                    puncVecStr.pop_back();//Delete the left one.
+                }
+                else if(punctureStrEnd.find(wordStr.c_str())!=punctureStrEnd.npos) {// When finding the Chinese end puncture.
+                    //Regard those ending punctures before the right puncture of puncture pairs to be part of a sentence.
+                    lastWordIsEndPunc = true;
+                }
             }
-            if(punctureStrLeft.find(wordStr.c_str())!=punctureStrLeft.npos) { // When finding the Chinese left puncture
-                puncVecStr.push_back(wordStr);
-            }
-            else if(punctureStrRight.find(wordStr.c_str())!=punctureStrRight.npos && !puncVecStr.empty()
-                    && punctureStrLeft.find(puncVecStr.back())==punctureStrRight.find(wordStr.c_str())) {
-                // When finding the Chinese right puncture with the relevant left one on top of the stack.
-                // If not, ignore it.
-                puncVecStr.pop_back();//Delete the left one.
-            }
-            else if(punctureStrEnd.find(wordStr.c_str())!=punctureStrEnd.npos) {// When finding the Chinese end puncture.
-                //Regard those ending punctures before the right puncture of puncture pairs to be part of a sentence.
-                lastWordIsEndPunc = true;
-            }
-            i+=3;
+            i+=bytesNum;
         }
+        else// Wrong first byte.
+            lineStr = lineStr.erase(i,1);
     }
 
     if(!(foundSentence && puncVecChar.empty() && puncVecStr.empty()))

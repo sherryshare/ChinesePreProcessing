@@ -33,6 +33,8 @@ protected:
     int GetSentence(string &lineStr);
     string ChangeBracket(string lineStr);
     char ChangeFullCaseToHalf(string fullCaseStr);
+    int GetUTF8BytesNum(char utf8Char);
+    bool JudgeUTF8NextChar(char utf8Char);
 
 protected:
     string fileName;
