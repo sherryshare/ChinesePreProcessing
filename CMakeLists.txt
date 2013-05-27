@@ -12,6 +12,8 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 
 set(src file_processing.cpp
+	raw_file_processing.cpp
+	sen_file_processing.cpp
 )
 
 add_library(ctpp_dynamic SHARED ${src})

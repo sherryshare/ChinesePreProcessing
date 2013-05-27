@@ -12,8 +12,10 @@ link_directories(${CTPP_ROOT_DIR}/lib)
 
 
 
-set(src testCTPP.cpp
-)
+set(bin_src testBin.cpp)
+set(sen_src testSen.cpp)
 
-add_executable(test ${src})
-target_link_libraries(test ctpp)
+add_executable(test_bin ${bin_src})
+target_link_libraries(test_bin ctpp)
+add_executable(test_sen ${sen_src})
+target_link_libraries(test_sen ctpp)
